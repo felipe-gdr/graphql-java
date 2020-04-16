@@ -4,6 +4,7 @@ import graphql.GraphQL
 import graphql.Scalars
 import graphql.TestUtil
 import graphql.schema.idl.RuntimeWiring
+import graphql.schema.idl.SchemaParser
 import graphql.schema.idl.SchemaPrinter
 import graphql.util.TraversalControl
 import graphql.util.TraverserContext
@@ -19,7 +20,94 @@ import static graphql.util.TreeTransformerUtil.changeNode
 import static graphql.util.TreeTransformerUtil.deleteNode
 
 class SchemaTransformerTest extends Specification {
+    def shouldReplace(TraverserContext<GraphQLSchemaElement> context) {
+        if (!(context.thisNode() instanceof GraphQLObjectType &&
+                ((GraphQLObjectType) context.thisNode()).getName().equals("Foo"))) return false
 
+        TraverserContext<GraphQLSchemaElement> contextParent = context.getParentContext()
+
+        return contextParent.thisNode() instanceof GraphQLFieldDefinition &&
+                ((GraphQLFieldDefinition) contextParent.thisNode()).getName() == "changeMe"
+    }
+
+    def "can change a single field type when there are multiple fields sharing the same type"() {
+        given:
+        GraphQLSchema schema = TestUtil.schema("""
+        type Query {
+            changeMe: Foo 
+            dontChangeMe: Foo 
+        }
+        type Foo {
+           bar: String
+       } 
+        """)
+        schema.getQueryType();
+        SchemaTransformer schemaTransformer = new SchemaTransformer()
+
+
+        when:
+        GraphQLSchema newSchema = schemaTransformer.transform(schema, new GraphQLTypeVisitorStub() {
+            @Override
+            TraversalControl visitGraphQLObjectType(GraphQLObjectType node, TraverserContext<GraphQLSchemaElement> context) {
+
+                if (shouldReplace(context)) {
+                    return changeNode(context, Scalars.GraphQLString)
+                }
+                return super.visitGraphQLObjectType(node, context)
+            }
+        })
+
+        then:
+        newSchema != schema
+        println(new SchemaPrinter(SchemaPrinter.Options.defaultOptions().includeDirectives(false)).print(newSchema))
+
+        def newQuery = (newSchema.getType("Query") as GraphQLObjectType)
+        def query = (schema.getType("Query") as GraphQLObjectType)
+
+        newQuery.getFieldDefinition("changeMe").getType() != query.getFieldDefinition("changeMe").getType()
+        newQuery.getFieldDefinition("dontChangeMe").getType() == query.getFieldDefinition("dontChangeMe").getType()
+        newSchema.getType("Foo") != null
+    }
+
+    def "can change a field type using visitBackRef"() {
+        given:
+        GraphQLSchema schema = TestUtil.schema("""
+        type Query {
+            dontChangeMe: Foo 
+            changeMe: Foo 
+        }
+        type Foo {
+           bar: String
+       } 
+        """)
+        schema.getQueryType();
+        SchemaTransformer schemaTransformer = new SchemaTransformer()
+
+
+        when:
+        GraphQLSchema newSchema = schemaTransformer.transform(schema, new GraphQLTypeVisitorStub() {
+            @Override
+            TraversalControl visitBackRef(TraverserContext<GraphQLSchemaElement> context) {
+
+                if (shouldReplace(context)) {
+                    // This call will throw a NPE
+                    return changeNode(context, Scalars.GraphQLString)
+                }
+                return TraversalControl.CONTINUE
+            }
+        })
+
+        then:
+        newSchema != schema
+        println(new SchemaPrinter(SchemaPrinter.Options.defaultOptions().includeDirectives(false)).print(newSchema))
+
+        def newQuery = (newSchema.getType("Query") as GraphQLObjectType)
+        def query = (schema.getType("Query") as GraphQLObjectType)
+
+        newQuery.getFieldDefinition("changeMe").getType() != query.getFieldDefinition("changeMe").getType()
+        newQuery.getFieldDefinition("dontChangeMe").getType() == query.getFieldDefinition("dontChangeMe").getType()
+        newSchema.getType("Foo") != null
+    }
 
     def "can change field in schema"() {
         given:
