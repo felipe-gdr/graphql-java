@@ -1,8 +1,8 @@
 package graphql.parser;
 
 import graphql.PublicApi;
+import graphql.language.Comment;
 import graphql.language.Document;
-import graphql.language.Node;
 import graphql.language.SourceLocation;
 import graphql.language.Type;
 import graphql.language.Value;
@@ -109,10 +109,7 @@ public class Parser {
      * @throws InvalidSyntaxException if the input is not valid graphql syntax
      */
     public Document parseDocument(String input, String sourceName) throws InvalidSyntaxException {
-        MultiSourceReader multiSourceReader = MultiSourceReader.newMultiSourceReader()
-                .string(input, sourceName)
-                .trackData(true)
-                .build();
+        MultiSourceReader multiSourceReader = stringToReader(input, sourceName);
         return parseDocument(multiSourceReader);
     }
 
@@ -127,11 +124,29 @@ public class Parser {
      * @throws InvalidSyntaxException if the input is not valid graphql syntax
      */
     public Document parseDocument(String input, ParserOptions parserOptions) throws InvalidSyntaxException {
-        MultiSourceReader multiSourceReader = MultiSourceReader.newMultiSourceReader()
-                .string(input, null)
-                .trackData(true)
-                .build();
+        MultiSourceReader multiSourceReader = stringToReader(input, null);
         return parseDocument(multiSourceReader, parserOptions);
+    }
+
+    // TODO: Javadoc
+    public List<Comment> parseComments(String input) {
+        return parseComments(input, null);
+    }
+
+    // TODO: Javadoc
+    public List<Comment> parseComments(String input, ParserOptions parserOptions) throws InvalidSyntaxException {
+        MultiSourceReader multiSourceReader = stringToReader(input, null);
+        return parseComments(multiSourceReader, parserOptions);
+    }
+
+    // TODO: Javadoc
+    public List<Comment> parseComments(Reader reader, ParserOptions parserOptions) {
+        return parseCommentsImpl(reader, parserOptions);
+    }
+
+    // TODO: Javadoc
+    public List<Comment> parseComments(Reader reader) {
+        return parseCommentsImpl(reader, null);
     }
 
     /**
@@ -161,42 +176,48 @@ public class Parser {
         return parseDocumentImpl(reader, parserOptions);
     }
 
+    private List<Comment> parseCommentsImpl(Reader reader, ParserOptions parserOptions) {
+        BiFunction<GraphqlParser, GraphqlAntlrToLanguage, NodeFunctionReturn<List<Comment>>> nodeFunction = (parser, toLanguage) -> {
+            GraphqlParser.DocumentContext documentContext = parser.document();
+
+            List<Comment> allComments = toLanguage.getAllComments();
+
+            return new NodeFunctionReturn<>(documentContext, allComments);
+        };
+        return parseImpl(reader, nodeFunction, parserOptions);
+    }
+
     private Document parseDocumentImpl(Reader reader, ParserOptions parserOptions) throws InvalidSyntaxException {
-        BiFunction<GraphqlParser, GraphqlAntlrToLanguage, Object[]> nodeFunction = (parser, toLanguage) -> {
+        BiFunction<GraphqlParser, GraphqlAntlrToLanguage, NodeFunctionReturn<Document>> nodeFunction = (parser, toLanguage) -> {
             GraphqlParser.DocumentContext documentContext = parser.document();
             Document doc = toLanguage.createDocument(documentContext);
-            return new Object[]{documentContext, doc};
+
+            return new NodeFunctionReturn<>(documentContext, doc);
         };
-        return (Document) parseImpl(reader, nodeFunction, parserOptions);
+        return parseImpl(reader, nodeFunction, parserOptions);
     }
 
     private Value<?> parseValueImpl(String input) throws InvalidSyntaxException {
-        BiFunction<GraphqlParser, GraphqlAntlrToLanguage, Object[]> nodeFunction = (parser, toLanguage) -> {
+        BiFunction<GraphqlParser, GraphqlAntlrToLanguage, NodeFunctionReturn<Value<?>>> nodeFunction = (parser, toLanguage) -> {
             GraphqlParser.ValueContext documentContext = parser.value();
             Value<?> value = toLanguage.createValue(documentContext);
-            return new Object[]{documentContext, value};
+            return new NodeFunctionReturn<>(documentContext, value);
         };
-        MultiSourceReader multiSourceReader = MultiSourceReader.newMultiSourceReader()
-                .string(input, null)
-                .trackData(true)
-                .build();
-        return (Value<?>) parseImpl(multiSourceReader, nodeFunction, null);
+        MultiSourceReader multiSourceReader = stringToReader(input, null);
+        return parseImpl(multiSourceReader, nodeFunction, null);
     }
 
     private Type<?> parseTypeImpl(String input) throws InvalidSyntaxException {
-        BiFunction<GraphqlParser, GraphqlAntlrToLanguage, Object[]> nodeFunction = (parser, toLanguage) -> {
+        BiFunction<GraphqlParser, GraphqlAntlrToLanguage, NodeFunctionReturn<Type<?>>> nodeFunction = (parser, toLanguage) -> {
             final GraphqlParser.TypeContext documentContext = parser.type();
             Type<?> value = toLanguage.createType(documentContext);
-            return new Object[]{documentContext, value};
+            return new NodeFunctionReturn<>(documentContext, value);
         };
-        MultiSourceReader multiSourceReader = MultiSourceReader.newMultiSourceReader()
-                .string(input, null)
-                .trackData(true)
-                .build();
-        return (Type<?>) parseImpl(multiSourceReader, nodeFunction, null);
+        MultiSourceReader multiSourceReader = stringToReader(input, null);
+        return parseImpl(multiSourceReader, nodeFunction, null);
     }
 
-    private Node<?> parseImpl(Reader reader, BiFunction<GraphqlParser, GraphqlAntlrToLanguage, Object[]> nodeFunction, ParserOptions parserOptions) throws InvalidSyntaxException {
+    private <T> T parseImpl(Reader reader, BiFunction<GraphqlParser, GraphqlAntlrToLanguage, NodeFunctionReturn<T>> nodeFunction, ParserOptions parserOptions) throws InvalidSyntaxException {
         MultiSourceReader multiSourceReader;
         if (reader instanceof MultiSourceReader) {
             multiSourceReader = (MultiSourceReader) reader;
@@ -243,9 +264,9 @@ public class Parser {
         //
         // parsing starts ...... now!
         //
-        Object[] contextAndNode = nodeFunction.apply(parser, toLanguage);
-        ParserRuleContext parserRuleContext = (ParserRuleContext) contextAndNode[0];
-        Node<?> node = (Node<?>) contextAndNode[1];
+        NodeFunctionReturn<T> nodeFunctionReturn = nodeFunction.apply(parser, toLanguage);
+        ParserRuleContext parserRuleContext = nodeFunctionReturn.context;
+        T nodeFunctionData = nodeFunctionReturn.data;
 
         Token stop = parserRuleContext.getStop();
         List<Token> allTokens = tokens.getTokens();
@@ -261,7 +282,7 @@ public class Parser {
                 throw bailStrategy.mkMoreTokensException(last);
             }
         }
-        return node;
+        return nodeFunctionData;
     }
 
     private void setupParserListener(MultiSourceReader multiSourceReader, GraphqlParser parser, GraphqlAntlrToLanguage toLanguage) {
@@ -336,5 +357,22 @@ public class Parser {
      */
     protected GraphqlAntlrToLanguage getAntlrToLanguage(CommonTokenStream tokens, MultiSourceReader multiSourceReader, ParserOptions parserOptions) {
         return new GraphqlAntlrToLanguage(tokens, multiSourceReader, parserOptions);
+    }
+
+    private MultiSourceReader stringToReader(String input, String sourceName) {
+        return MultiSourceReader.newMultiSourceReader()
+                .string(input, sourceName)
+                .trackData(true)
+                .build();
+    }
+
+    private static class NodeFunctionReturn<T> {
+        private final ParserRuleContext context;
+        private final T data;
+
+        private NodeFunctionReturn(ParserRuleContext context, T data) {
+            this.context = context;
+            this.data = data;
+        }
     }
 }

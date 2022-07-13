@@ -71,6 +71,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static graphql.Assert.assertShouldNeverHappen;
 import static graphql.collect.ImmutableKit.emptyList;
@@ -101,6 +102,15 @@ public class GraphqlAntlrToLanguage {
 
     public ParserOptions getParserOptions() {
         return parserOptions;
+    }
+
+    public List<Comment> getAllComments() {
+        final List<Token> commentTokens = this.tokens.getTokens()
+                .stream()
+                .filter(token -> token.getChannel() == CHANNEL_COMMENTS)
+                .collect(Collectors.toList());
+
+        return getCommentOnChannel(commentTokens);
     }
 
     //MARKER START: Here GraphqlOperation.g4 specific methods begin

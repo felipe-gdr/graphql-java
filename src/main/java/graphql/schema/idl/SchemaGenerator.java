@@ -174,6 +174,9 @@ public class SchemaGenerator {
          *
          * @param useCommentsAsDescription the flag to control whether comments can be used as schema element descriptions
          *
+         * @deprecated Using comments as descriptions has been deprecated. Comments are still valid syntax and there's
+         * value in using them, but they'll soon no longer be used to resolve the description of schema elements.
+         *
          * @return a new Options object
          */
         public Options useCommentsAsDescriptions(boolean useCommentsAsDescription) {
