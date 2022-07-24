@@ -6,7 +6,6 @@ import graphql.language.Argument
 import graphql.language.ArrayValue
 import graphql.language.AstComparator
 import graphql.language.BooleanValue
-import graphql.language.Comment
 import graphql.language.Description
 import graphql.language.Directive
 import graphql.language.DirectiveDefinition
@@ -1200,28 +1199,4 @@ triple3 : """edge cases \\""" "" " \\"" \\" edge cases"""
         tokens == ["query", "{", "f", "(", "arg", ":", "1", ")", "}"]
 
     }
-
-    def "can get comments from schema definition"() {
-        given:
-        def input = '''
-# start of document
-# before type def
-type Query { # after type def
-  # before field def
-  echo: String # after field def
-}
-# end of document
-'''
-
-        when:
-        List<Comment> allComments = new Parser().parseComments(input)
-        then:
-        List<String> formattedComments = allComments.stream()
-                .map { "${it.content}|${it.sourceLocation.line}:${it.sourceLocation.column}" }
-                .collect()
-
-        formattedComments == [" start of document|3:0", " before type def|4:0", " after type def|5:13",
-                              " before field def|6:2", " after field def|7:15", " end of document|9:0"]
-    }
-
 }
