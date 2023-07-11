@@ -1,6 +1,7 @@
 package graphql.schema.usage;
 
 import graphql.PublicApi;
+import graphql.schema.GraphQLAppliedDirective;
 import graphql.schema.GraphQLArgument;
 import graphql.schema.GraphQLDirective;
 import graphql.schema.GraphQLFieldDefinition;
@@ -112,6 +113,30 @@ public class SchemaUsageSupport {
                 if (parentElement != null) {
                     // a null parent is a directive definition
                     // we record a count if the directive is applied to something - not just defined
+                    builder.directiveReferenceCount.compute(directive.getName(), incCount());
+                }
+                if (parentElement instanceof GraphQLArgument) {
+                    context = context.getParentContext();
+                    parentElement = context.getParentNode();
+                }
+                if (parentElement instanceof GraphQLFieldDefinition) {
+                    context = context.getParentContext();
+                    parentElement = context.getParentNode();
+                }
+                if (parentElement instanceof GraphQLInputObjectField) {
+                    context = context.getParentContext();
+                    parentElement = context.getParentNode();
+                }
+                recordBackReference(directive, parentElement);
+                return CONTINUE;
+            }
+
+
+            @Override
+            public TraversalControl visitGraphQLAppliedDirective(GraphQLAppliedDirective directive, TraverserContext<GraphQLSchemaElement> context) {
+                GraphQLSchemaElement parentElement = context.getParentNode();
+                if (parentElement != null) {
+                    // an applied directive should always have a parent, but we're being defensive
                     builder.directiveReferenceCount.compute(directive.getName(), incCount());
                 }
                 if (parentElement instanceof GraphQLArgument) {
