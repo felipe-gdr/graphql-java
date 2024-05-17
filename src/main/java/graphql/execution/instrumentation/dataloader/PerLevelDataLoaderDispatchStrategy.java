@@ -100,6 +100,7 @@ public class PerLevelDataLoaderDispatchStrategy implements DataLoaderDispatchStr
     @Override
     public void deferredField(ExecutionContext executionContext, MergedField currentField) {
         // TODO: Implement this
+        System.out.println("deferredField");
     }
 
     @Override
@@ -114,6 +115,7 @@ public class PerLevelDataLoaderDispatchStrategy implements DataLoaderDispatchStr
         onFieldValuesInfoDispatchIfNeeded(fieldValueInfoList, curLevel, parameters);
     }
 
+    @Override
     public void executionStrategyOnFieldValuesException(Throwable t, ExecutionStrategyParameters executionStrategyParameters) {
         int curLevel = executionStrategyParameters.getPath().getLevel() + 1;
         callStack.lock.runLocked(() ->

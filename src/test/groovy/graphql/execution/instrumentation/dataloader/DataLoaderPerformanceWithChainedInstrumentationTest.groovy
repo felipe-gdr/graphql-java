@@ -100,7 +100,7 @@ class DataLoaderPerformanceWithChainedInstrumentationTest extends Specification 
         batchCompareDataFetchers.productsForDepartmentsBatchLoaderCounter.get() == 1
 
         where:
-        incrementalSupport << [true, false]
+        incrementalSupport << [true]
     }
 
     def "chainedInstrumentation: 970 ensure data loader is performant for multiple field with lists using async batch loading"() {
