@@ -34,6 +34,7 @@ public class PerLevelDataLoaderDispatchStrategy implements DataLoaderDispatchStr
         private final Set<Integer> dispatchedLevels = new LinkedHashSet<>();
 
         public CallStack() {
+            // Why is this initialized to 1?
             expectedStrategyCallsPerLevel.set(1, 1);
         }
 
@@ -99,22 +100,28 @@ public class PerLevelDataLoaderDispatchStrategy implements DataLoaderDispatchStr
 
     @Override
     public void deferredField(ExecutionContext executionContext, MergedField currentField) {
-        throw new UnsupportedOperationException("Data Loaders cannot be used to resolve deferred fields");
+        // TODO: Implement this
+        System.out.println("deferredField");
     }
 
     @Override
     public void executionStrategy(ExecutionContext executionContext, ExecutionStrategyParameters parameters) {
+        System.out.println("executionStrategy");
         int curLevel = parameters.getExecutionStepInfo().getPath().getLevel() + 1;
         increaseCallCounts(curLevel, parameters);
     }
 
     @Override
     public void executionStrategyOnFieldValuesInfo(List<FieldValueInfo> fieldValueInfoList, ExecutionStrategyParameters parameters) {
+        System.out.println("executionStrategyOnFieldValuesInfo");
+        // Who calls this?
         int curLevel = parameters.getPath().getLevel() + 1;
         onFieldValuesInfoDispatchIfNeeded(fieldValueInfoList, curLevel, parameters);
     }
 
+    @Override
     public void executionStrategyOnFieldValuesException(Throwable t, ExecutionStrategyParameters executionStrategyParameters) {
+        System.out.println("executionStrategyOnFieldValuesException");
         int curLevel = executionStrategyParameters.getPath().getLevel() + 1;
         callStack.lock.runLocked(() ->
                 callStack.increaseHappenedOnFieldValueCalls(curLevel)
@@ -124,12 +131,15 @@ public class PerLevelDataLoaderDispatchStrategy implements DataLoaderDispatchStr
 
     @Override
     public void executeObject(ExecutionContext executionContext, ExecutionStrategyParameters parameters) {
+        System.out.println("executeObject");
         int curLevel = parameters.getExecutionStepInfo().getPath().getLevel() + 1;
         increaseCallCounts(curLevel, parameters);
     }
 
     @Override
     public void executeObjectOnFieldValuesInfo(List<FieldValueInfo> fieldValueInfoList, ExecutionStrategyParameters parameters) {
+        System.out.println("executeObjectOnFieldValuesInfo: " + parameters);
+        // Who calls this?
         int curLevel = parameters.getPath().getLevel() + 1;
         onFieldValuesInfoDispatchIfNeeded(fieldValueInfoList, curLevel, parameters);
     }
@@ -137,6 +147,7 @@ public class PerLevelDataLoaderDispatchStrategy implements DataLoaderDispatchStr
 
     @Override
     public void executeObjectOnFieldValuesException(Throwable t, ExecutionStrategyParameters parameters) {
+        System.out.println("executeObjectOnFieldValuesException");
         int curLevel = parameters.getPath().getLevel() + 1;
         callStack.lock.runLocked(() ->
                 callStack.increaseHappenedOnFieldValueCalls(curLevel)
@@ -220,6 +231,21 @@ public class PerLevelDataLoaderDispatchStrategy implements DataLoaderDispatchStr
             // level 1 is special: there is only one strategy call and that's it
             return callStack.allFetchesHappened(1);
         }
+
+//        StringBuilder sb = new StringBuilder();
+//        sb.append("fetchCountPerLevel(").append(callStack.fetchCountPerLevel).append(") ");
+//        sb.append("\n");
+//        sb.append("expectedFetchCountPerLevel(").append(callStack.expectedFetchCountPerLevel).append(") ");
+//        sb.append("\n");
+//        sb.append("happenedStrategyCallsPerLevel(").append(callStack.happenedStrategyCallsPerLevel).append(") ");
+//        sb.append("\n");
+//        sb.append("expectedStrategyCallsPerLevel(").append(callStack.expectedStrategyCallsPerLevel).append(") ");
+//        sb.append("\n");
+//        sb.append("happenedOnFieldValueCallsPerLevel(").append(callStack.happenedOnFieldValueCallsPerLevel).append(") ");
+//        sb.append("\n");
+//        sb.append("-------------------------------");
+//        System.out.println(sb);
+
         if (levelReady(level - 1) && callStack.allOnFieldCallsHappened(level - 1)
                 && callStack.allStrategyCallsHappened(level) && callStack.allFetchesHappened(level)) {
 
@@ -230,7 +256,9 @@ public class PerLevelDataLoaderDispatchStrategy implements DataLoaderDispatchStr
 
     void dispatch(int level) {
         DataLoaderRegistry dataLoaderRegistry = executionContext.getDataLoaderRegistry();
+        // NOTE: dispatches all
         dataLoaderRegistry.dispatchAll();
+        System.out.println("dispatching level " + level);
     }
 
 }

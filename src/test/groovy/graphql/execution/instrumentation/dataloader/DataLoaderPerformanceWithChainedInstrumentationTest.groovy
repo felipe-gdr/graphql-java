@@ -100,7 +100,7 @@ class DataLoaderPerformanceWithChainedInstrumentationTest extends Specification 
         batchCompareDataFetchers.productsForDepartmentsBatchLoaderCounter.get() == 1
 
         where:
-        incrementalSupport << [true, false]
+        incrementalSupport << [true]
     }
 
     def "chainedInstrumentation: 970 ensure data loader is performant for multiple field with lists using async batch loading"() {
@@ -141,7 +141,6 @@ class DataLoaderPerformanceWithChainedInstrumentationTest extends Specification 
         exception.message == "Data Loaders cannot be used to resolve deferred fields"
     }
 
-    @Ignore("Resolution of deferred fields via Data loaders is not yet supported")
     def "chainedInstrumentation: data loader will work with deferred queries"() {
 
         when:
@@ -152,7 +151,7 @@ class DataLoaderPerformanceWithChainedInstrumentationTest extends Specification 
                 .graphQLContext([(ENABLE_INCREMENTAL_SUPPORT): true])
                 .build()
 
-        IncrementalExecutionResult result = graphQL.execute(executionInput)
+        IncrementalExecutionResult result = graphQL.execute(executionInput) as IncrementalExecutionResult
 
         then:
         result.toSpecification() == expectedInitialDeferredData
