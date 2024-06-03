@@ -265,13 +265,22 @@ class DataLoaderPerformanceData {
 
     static def deferredQuery = """
             query { 
-                shops { 
-                    id name 
-                    ... @defer {
-                        departments { 
-                            id name 
-                            products { 
-                                id name 
+                # 4 shops - 1 null, 3 not
+                shops {  
+                    id # property data fetcher
+                    name
+                    ... @defer(if: true) {
+                        # the data fetcher for data loaders doesn't really do anything (returns CF not-resolved)
+                        # Data Loader dispatch is when the actual data gets fetched. Batch loader is then called
+                        
+                        
+                        # note: data loader also does optimization: duplicated IDs, etc....
+                        departments { # 3 calls - 1 per non-null shop 
+                            id 
+                            name # data loader can be used on any field (for example: name)
+                            products { # 1 + 2 + 3 = 6 products
+                                id 
+                                name 
                             } 
                         } 
                     }

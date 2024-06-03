@@ -229,6 +229,7 @@ public abstract class ExecutionStrategy {
                 }
 
                 Async.CombinedBuilder<Object> resultFutures = fieldValuesCombinedBuilder(completeValueInfos);
+                // Why is this not being called for shops[2]?
                 dataLoaderDispatcherStrategy.executeObjectOnFieldValuesInfo(completeValueInfos, parameters);
                 resolveObjectCtx.onFieldValuesInfo(completeValueInfos);
                 resultFutures.await().whenComplete(handleResultsConsumer);

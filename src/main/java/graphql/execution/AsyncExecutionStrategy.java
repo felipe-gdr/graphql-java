@@ -72,6 +72,7 @@ public class AsyncExecutionStrategy extends AbstractAsyncExecutionStrategy {
             for (FieldValueInfo completeValueInfo : completeValueInfos) {
                 fieldValuesFutures.addObject(completeValueInfo.getFieldValueObject());
             }
+            // This calls increases the happenedOnFieldValueCalls count - which will trigger the DL dispatch
             dataLoaderDispatcherStrategy.executionStrategyOnFieldValuesInfo(completeValueInfos, parameters);
             executionStrategyCtx.onFieldValuesInfo(completeValueInfos);
             fieldValuesFutures.await().whenComplete(handleResultsConsumer);
